@@ -32,26 +32,19 @@ export default function Home() {
   }, [animationData, textIndex]);
 
   useEffect(() => {
+    const a = { ...animationData };
     if (
       text &&
       textIndex !== undefined &&
       textIndex !== null &&
-      animationData?.layers?.[textIndex]?.t?.d?.k?.[0].s.t !== text
+      a.layers &&
+      a.layers?.[textIndex]?.t?.d?.k?.[0].s.t &&
+      a.layers?.[textIndex]?.t?.d?.k?.[0].s.t !== text
     ) {
-      const a = { ...animationData };
       a.layers[textIndex].t.d.k[0].s.t = text;
       setAnimationData(a);
     }
   }, [animationData, text, textIndex]);
-
-  useEffect(() => {
-    const col = { ...animationData.layers[2] };
-    console.log("col", col.shapes[0].it[2]);
-    col.shapes[0].it[2].c.k = [1, 1, 1];
-    const a = { ...animationData };
-    a.layers[2] = col;
-    setAnimationData(a);
-  }, []);
 
   const [loading, setLoading] = useState(false);
   const handleClick = async () => {
@@ -78,9 +71,9 @@ export default function Home() {
 
   const handleColor = (e: string, index: number) => {
     const a = { ...animationData };
+    // @ts-expect-error layer is undefined
     a.layers[index].shapes[0].it.find((it) => it.ty === "fl").c.k = hexToRGB(e);
     setAnimationData(a);
-    z;
   };
 
   return (
@@ -95,9 +88,11 @@ export default function Home() {
             <div className="my-4">
               <h6>Colori:</h6>
               {animationData.layers.map((s, index) => {
-                if (s.ty !== 4 || s.shapes.length !== 1) return;
+                if (s.ty !== 4 || s?.shapes?.length !== 1) return;
                 const color = RGBAToHexA(
-                  s.shapes[0].it.find((it) => it.ty === "fl").c.k,
+                  s?.shapes?.[0]?.it?.find((it) => it.ty === "fl")?.c?.k ?? [
+                    0, 0, 0, 1,
+                  ],
                 );
 
                 return (
