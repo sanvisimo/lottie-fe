@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useMemo } from "react";
-import lottie, { AnimationItem } from "lottie-web";
+import lottie, { AnimationItem, BMEnterFrameEvent } from "lottie-web";
 import ROG_URL from "@/components/ROG_URL.json";
 import { hexToRGB, RGBAToHexA } from "@/lib/helpers";
 import { Loader } from "@/components/Loader";
@@ -11,15 +11,18 @@ export default function Home() {
   const [animationData, setAnimationData] = useState({ ...ROG_URL });
   const [text, setText] = useState("");
   const [lottieLoader, setLottieLoader] = useState(true);
+  const [duration, setDuration] = useState<number | undefined>(0);
 
   useEffect(() => {
     setLottieLoader(true);
     if (lottieContainer.current) {
       animationRef.current = lottie.loadAnimation({
         container: lottieContainer.current,
+        loop: false,
         animationData,
       });
     }
+    setDuration(animationRef?.current?.getDuration(true));
     setLottieLoader(false);
     return () => animationRef.current?.destroy();
   }, [animationData]);
@@ -43,14 +46,19 @@ export default function Home() {
       textIndex !== null &&
       a.layers &&
       a.layers?.[textIndex]?.t?.d?.k?.[0].s.t &&
-      a.layers?.[textIndex]?.t?.d?.k?.[0].s.t !== text
+      a.layers?.[textIndex]?.t?.d?.k?.[0].s.t !==
+        text.replace(new RegExp("\r\n", "g"), "\r")
     ) {
-      a.layers[textIndex].t.d.k[0].s.t = text;
+      a.layers[textIndex].t.d.k[0].s.t = text.replace(
+        new RegExp("\n", "g"),
+        "\r",
+      );
       setAnimationData(a);
     }
   }, [animationData, text, textIndex]);
 
   const [loading, setLoading] = useState(false);
+  const [link, setLink] = useState("");
   const handleClick = async () => {
     setLoading(true);
     try {
@@ -67,6 +75,7 @@ export default function Home() {
       );
       const posts = await data.json();
       console.log("return", posts);
+      setLink(posts.url);
     } catch (error) {
       console.log("error", error);
     }
@@ -80,19 +89,146 @@ export default function Home() {
     setAnimationData(a);
   };
 
+  const [playStatus, setPlayStatus] = useState(true);
+
+  const handlePlay = () => {
+    if (playStatus) {
+      animationRef?.current?.pause();
+    } else {
+      animationRef?.current?.play();
+    }
+    setPlayStatus((status) => !status);
+  };
+
+  const handleStop = () => {
+    animationRef?.current?.stop();
+    setPlayStatus(false);
+  };
+
+  /*
+   frame = {
+    currentTime: 60.60749999999991
+    direction: 1
+    totalTime: 75
+    type:"enterFrame"
+   }
+  */
+
+  const [currentTime, setCurrentTime] = useState(0);
+  useEffect(() => {
+    function manageFrame(frame: BMEnterFrameEvent) {
+      setCurrentTime(frame.currentTime);
+    }
+
+    animationRef?.current?.addEventListener("enterFrame", manageFrame);
+    animationRef?.current?.addEventListener("complete", () => {
+      animationRef?.current?.goToAndStop(0, true);
+      setPlayStatus(false);
+    });
+  }, []);
+
+  const handleProgress = (e: React.MouseEvent<HTMLProgressElement>) => {
+    const progress = e.target as HTMLProgressElement;
+    console.log(
+      "progress",
+      e.clientX,
+      progress.clientWidth,
+      progress.offsetLeft,
+      progress.value,
+    );
+
+    if (duration) {
+      const length = progress.clientWidth + progress.offsetLeft + 32;
+      const frame = (duration * e.clientX) / length;
+      animationRef?.current?.goToAndStop(frame, true);
+    }
+  };
+
+  const handleRewind = () => {
+    const time = currentTime - 10;
+    if (playStatus) {
+      animationRef?.current?.goToAndPlay(time, true);
+    } else {
+      animationRef?.current?.goToAndStop(time, true);
+    }
+  };
+  const handleForward = () => {
+    const time = currentTime + 10;
+    if (playStatus) {
+      animationRef?.current?.goToAndPlay(time, true);
+    } else {
+      animationRef?.current?.goToAndStop(time, true);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-between p-8 pb-20 gap-16 min-h-screen">
       <main className="row-start-2">
         <div className="grid grid-cols-2 gap-4">
-          <div className="flex justify-start items-center relative">
-            {lottieLoader && (
-              <div className="absolute w-100 h-100">
-                <Loader />
+          <div>
+            <div className="flex justify-start items-center relative group">
+              {lottieLoader && (
+                <div className="absolute w-100 h-100">
+                  <Loader />
+                </div>
+              )}
+              <div ref={lottieContainer} />
+              <div
+                id="controls"
+                className="opacity-0 p-5 absolute bottom-0 left-0 w-full transition-opacity duration-300 ease-linear group-hover:opacity-100"
+              >
+                {/* PROGRESS BAR */}
+
+                <progress
+                  className="w-full progress-indicator"
+                  value={currentTime}
+                  max={duration}
+                  onClick={handleProgress}
+                >
+                  {currentTime}%
+                </progress>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between">
+                    <button
+                      id="rewind"
+                      className="transition-all duration-100 ease-linear hover:scale-125"
+                      onClick={handleRewind}
+                    >
+                      <span className="material-symbols-outlined text-white text-3xl w-12">
+                        replay_10
+                      </span>
+                    </button>
+                    <button
+                      id="play-pause"
+                      className="transition-all duration-100 ease-linear hover:scale-125"
+                      onClick={handlePlay}
+                    >
+                      <span className="material-symbols-outlined text-white text-3xl w-12">
+                        {playStatus ? "pause" : "play_arrow"}
+                      </span>
+                    </button>
+                    <button type="button" onClick={handleStop}>
+                      <span className="material-symbols-outlined text-white text-3xl w-12">
+                        stop
+                      </span>
+                    </button>
+                    <button
+                      id="fast-forward"
+                      className="transition-all duration-100 ease-linear hover:scale-125"
+                      onClick={handleForward}
+                    >
+                      <span className="material-symbols-outlined text-white text-3xl w-12">
+                        forward_10
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
-            <div ref={lottieContainer} />
+            </div>
           </div>
 
+          {/* colonna */}
           <div>
             <div className="my-4">
               <h6>Colori:</h6>
@@ -152,6 +288,20 @@ export default function Home() {
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="flex gap-6 items-center justify-center my-4">
+          {link && (
+            <div>
+              Il tuo video è pronto! <br />
+              <div className="flex gap-1 items-center justify-center">
+                <span>Lo puoi scaricare</span>
+                <a href={link} className="text-cyan-600">
+                  qui!
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       </main>
       <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
