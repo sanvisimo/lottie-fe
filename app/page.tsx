@@ -161,6 +161,33 @@ export default function Home() {
     }
   };
 
+  const [image, setImage] = useState("");
+  const handleImage = async () => {
+    setLoading(true);
+    try {
+      const data = await fetch(
+        "https://4qfw82mps9.execute-api.eu-west-1.amazonaws.com/prod/images",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            animationData,
+            frame: Math.round(currentTime),
+          }),
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": "k3dc9lEUYN1ec9xl64e923RujZYqiashaxzjvsmE",
+          },
+        },
+      );
+      const posts = await data.json();
+      console.log("return", posts);
+      setImage(posts.url);
+    } catch (error) {
+      console.log("error", error);
+    }
+    setLoading(false);
+  };
+
   return (
     <div className="flex flex-col items-center justify-between p-8 pb-20 gap-16 min-h-screen">
       <main className="row-start-2">
@@ -278,14 +305,23 @@ export default function Home() {
               />
             </div>
             <div className="mt-4">
-              <button
-                type="button"
-                className="focus:outline-none text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800"
+              <a
+                href="#"
+                className="font-medium text-blue-600 dark:text-blue-500 hover:underline mr-2"
+                onClick={handleImage}
+              >
+                {loading && <Loader />}
+                Esporta come immagine (.png)
+              </a>
+              |
+              <a
+                href="#"
+                className="font-medium text-blue-600 dark:text-blue-500 hover:underline ml-2"
                 onClick={handleClick}
               >
                 {loading && <Loader />}
-                Salva
-              </button>
+                Esporta come video (.mp4)
+              </a>
             </div>
           </div>
         </div>
@@ -297,6 +333,17 @@ export default function Home() {
               <div className="flex gap-1 items-center justify-center">
                 <span>Lo puoi scaricare</span>
                 <a href={link} className="text-cyan-600">
+                  qui!
+                </a>
+              </div>
+            </div>
+          )}
+          {image && (
+            <div>
+              La tua immagine è pronta! <br />
+              <div className="flex gap-1 items-center justify-center">
+                <span>La puoi scaricare</span>
+                <a href={image} className="text-cyan-600">
                   qui!
                 </a>
               </div>
